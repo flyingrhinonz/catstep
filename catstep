@@ -92,7 +92,7 @@ Applies to both modes.
 Interactive mode controls
 -------------------------
 
-- 0-9:                Play back 10^n chars where n is the key pressed
+- 0-9:                Play back 10^n chars where n is the key pressed.
                       0 plays back 1 char, 1 plays back 10 chars,
                       2 plays back 100 chars, etc
 - q:                  Quit catstep

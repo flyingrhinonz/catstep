@@ -73,18 +73,16 @@ This includes file name, number of lines and chars.
 Displays this man page.
 
 -p / --periodic status <5-60 seconds>:
-In interactive mode logs the current position in the file every n
-seconds (default 10) in case you missed pressing 'p' youeself.
-This only works if you're actively progressing in the file.
-This can be really helpful if you speed past something with a high
-number keypress and want to know where you were n seconds ago.
-In autoplay mode simply logs the current position every n seconds.
-If you enter a value not 1-60 it will force 10 seconds.
+Logs the current position in the file every n seconds (default 10).
+In interactive mode this only works if you're actively progressing in the file.
+This can be really helpful if you speed past something and want to know where
+you were a few seconds ago.
+If you enter a value not 5-60 it will force 10 seconds.
 
 -s / --sleep <seconds>:
-Sleep <seconds> before subsequent output. Can be any number including
-times less than 1 (eg: 0.5 , 0.001 , 2.3, etc).
-Applies only to autoplay mode.
+Sleep <seconds> between chars output. Can be any number including
+times less than 1 (eg: 0.5 , 0.001 , 2.3 , etc).
+Applies to both modes.
 
 
 Interactive mode controls
@@ -104,11 +102,13 @@ There's no step back option to 'replay backwards' because catstep
 doesn't retain state - your display is updated as per the controls in
 the file so the current state is what you see on your terminal. At first
 glance this may seem like a killer limitation, but for that I added
-the `s` interactive control which logs the char currently displayed.
+the `p` interactive control which logs the char currently displayed.
 If you need to check out what happened a short while ago (say the screen
-was cleared), just hit `s`, view the log file to see the line you were at,
+was cleared), just hit `p`, view the log file to see the line you were at,
 then restart catstep using the `-f` arg to fast forward the file a few
 chars less. Then step through it slowly.
+Also catstep periodically logs the current position, so you can use that
+to get an idea of where you were in the file.
 
 
 Troubleshooting

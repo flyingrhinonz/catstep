@@ -1,3 +1,4 @@
+
 catstep
 =======
 
@@ -30,14 +31,14 @@ Introduction
 
 I wrote this program as a solution to display terminal output that was
 captured with tee.
-nccm (ncurses ssh connection manager) has an option to pipe all ssh
-command output to tee, which results in a file that contains a
-mixture of text and cursor/screen controls that's very hard to read in
+My other software - nccm (ncurses ssh connection manager) has an option
+to pipe all ssh command output to tee, which results in a file that contains
+a mixture of text and cursor/screen controls that's very hard to read in
 a regular viewer. It does however display properly when you `cat` it to
 screen but that flies away faster than you can read it.
 catstep aims to fix this by allowing you to auto replay the file at a
 controlled pace, or step through it manually.
-Output is sent to your screen, which means that the display should be
+Output is sent to your screen, which requires the display size to be
 identical or larger than the terminal size at capture time otherwise
 output will probably be wrong.
 
@@ -68,13 +69,15 @@ Displays the command line options.
 -i / --info:
 Displays information about the file before and after it is displayed.
 This includes file name, number of lines and chars.
+Applies to both modes.
 
 -m / --man:
 Displays this man page.
 
--p / --periodic status <5-60 seconds>:
+-p / --periodic status <seconds>:
 Logs the current position in the file every n seconds (default 10).
 In interactive mode this only works if you're actively progressing in the file.
+In autoplay mode this works every n seconds.
 This can be really helpful if you speed past something and want to know where
 you were a few seconds ago.
 If you enter a value not 5-60 it will force 10 seconds.
@@ -88,7 +91,7 @@ Applies to both modes.
 Interactive mode controls
 -------------------------
 
-- 0-9:                Play back 10^n chars where n is the key pressed
+- 0-9:                Play back 10^n chars where n is the key pressed.
                       0 plays back 1 char, 1 plays back 10 chars,
                       2 plays back 100 chars, etc
 - q:                  Quit catstep

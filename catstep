@@ -53,31 +53,31 @@ At it's simplest `catstep <file>` will get you going and put you into
 interactive mode. Once in interactive mode use the keyboard controls
 listed in the following section.
 
--a / --autoplay:
+-a / --autoplay :
 Auto replay the file one char at a time.
 Respects the sleep variable if supplied, else uses the default of
 0.01 seconds. Applies only to autoplay mode.
 
--d / --debug:
+-d / --debug :
 Log extra debugging information to syslog. Applies to both modes.
 
--f / --fastforward <chars>
+-f / --fastforward <chars> :
 Replay n chars at maximum speed before returning control to the regular
 view. This lets you speed through the file until the actual point you
 want to view at a controlled speed. Applies to both modes.
 
--h / --help:
+-h / --help :
 Displays the command line options.
 
--i / --info:
+-i / --info :
 Displays information about the file before and after it is displayed.
 This includes file name, number of lines and chars.
 Applies to both modes.
 
--m / --man:
+-m / --man :
 Displays this man page.
 
--p / --periodic status <seconds>:
+-p / --periodic status <seconds> :
 Logs the current position in the file every n seconds (default 10).
 In interactive mode this only works if you're actively progressing in the file.
 In autoplay mode this works every n seconds.
@@ -85,7 +85,7 @@ This can be really helpful if you speed past something and want to know where
 you were a few seconds ago.
 If you enter a value not 5-60 it will force 10 seconds.
 
--s / --sleep <seconds>:
+-s / --sleep <seconds> :
 Sleep <seconds> between chars output. Can be any number including
 times less than 1 (eg: 0.5 , 0.001 , 2.3 , etc).
 Applies to both modes.
@@ -94,11 +94,11 @@ Applies to both modes.
 Interactive mode controls
 -------------------------
 
-- 0-9:                Play back 10^n chars where n is the key pressed.
+- 0-9 :               Play back 10^n chars where n is the key pressed.
                       0 plays back 1 char, 1 plays back 10 chars,
                       2 plays back 100 chars, etc
-- q:                  Quit catstep
-- p:                  Log filename and position in file
+- q :                 Quit catstep
+- p :                 Log filename and position in file
 
 
 Limitations
@@ -115,6 +115,11 @@ then restart catstep using the `-f` arg to fast forward the file a few
 chars less. Then step through it slowly.
 Also catstep periodically logs the current position, so you can use that
 to get an idea of where you were in the file.
+With some files - especially those with lots of cursor controls, catstep may
+display a summary char count lower than the actual file size. I have not seen
+catstep miss any output display so it could be that certain cursor control
+chars don't get counted. If anyone experiences problems or can narrow it down
+to particular cases please report this in the issues.
 
 
 Troubleshooting
@@ -307,7 +312,7 @@ LogWrite.debug('catstep started with log level = {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.1.6'       # catstep version string
+__version__ = '0.1.7'       # catstep version string
 
 
 class Config:

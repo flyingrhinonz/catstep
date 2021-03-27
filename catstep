@@ -34,7 +34,8 @@ Introduction
 
 I wrote this program as a solution to display terminal output that was
 captured with tee.
-My other software - nccm (ncurses ssh connection manager) has an option
+My other software - nccm ( ncurses ssh connection manager:
+https://github.com/flyingrhinonz/nccm ) has an option
 to pipe all ssh command output to tee, which results in a file that contains
 a mixture of text and cursor/screen controls that's very hard to read in
 a regular viewer. It does however display properly when you `cat` it to
@@ -52,6 +53,9 @@ Command line arguments
 At it's simplest `catstep <file>` will get you going and put you into
 interactive mode. Once in interactive mode use the keyboard controls
 listed in the following section.
+
+<file> :
+The file you want to display.
 
 -a / --autoplay :
 Auto replay the file one char at a time.
@@ -83,13 +87,18 @@ In interactive mode this only works if you're actively progressing in the file.
 In autoplay mode this works every n seconds.
 This can be really helpful if you speed past something and want to know where
 you were a few seconds ago.
-If you enter a value not 5-60 it will force 10 seconds.
+Supply a value of 0 to explicitly disable periodic logging.
+If you supply a value not 0, 5-60 it will force 10 seconds.
 
 -s / --sleep <seconds> :
 Sleep <seconds> between chars output. Can be any number including
 times less than 1 (eg: 0.5 , 0.001 , 2.3 , etc).
 Applies to both modes.
 
+-t / --smartsleep :
+Sleep s seconds only for printable chars. Off by default. This yields a more
+fluid playback when catstep encounters non-printable chars that would otherwise
+also incur sleep. Applies to both modes.
 
 Interactive mode controls
 -------------------------
@@ -104,7 +113,7 @@ Interactive mode controls
 Limitations
 -----------
 
-There's no step back option to 'replay backwards' because catstep
+- There's no step back option to 'replay backwards' because catstep
 doesn't retain state - your display is updated as per the controls in
 the file so the current state is what you see on your terminal. At first
 glance this may seem like a killer limitation, but for that I added
@@ -115,11 +124,37 @@ then restart catstep using the `-f` arg to fast forward the file a few
 chars less. Then step through it slowly.
 Also catstep periodically logs the current position, so you can use that
 to get an idea of where you were in the file.
-With some files - especially those with lots of cursor controls, catstep may
-display a summary char count lower than the actual file size. I have not seen
-catstep miss any output display so it could be that certain cursor control
-chars don't get counted. If anyone experiences problems or can narrow it down
-to particular cases please report this in the issues.
+
+- With some files - especially those with lots of cursor controls, catstep may
+display a summary char count lower than the actual file size.
+This is the same count as `wc -m` gives. I have not seen catstep miss any
+output display so it could be that certain cursor control chars don't get
+counted. If anyone experiences problems or can narrow it down to particular
+cases please report this in the issues.
+
+- I've seen some terminal output (such as refreshes of the menus in
+raspi-config running under screen when captured by `nccm` using `tee`) breaks
+up horizontally - which BTW also happens in linux `cat` too.
+But it's not unusable and you can easily read the output. This is possibly not
+caused by `catstep` or `cat`, but a consequence of the `tee`. I have not
+investigated this yet.
+
+- The entire file is read at once into catstep. Normally this shouldn't be a
+problem and you'll have plenty of RAM available - especially if you're using
+catstep for it's main design purpose of viewing nccm / tee terminal captures
+which tend to be quite small.
+
+- If you set the sleep to larger values (slower replay) you will notice that
+char display speed varies if the text changes color or if the cursor is
+moved. This is because these control characters are also chars in the file and
+the same sleep value applies to them even if they don't result in visible
+output.
+
+- When you quit catstep or after it completes displaying a file naturally,
+your terminal may be a bit messed up if the file you displayed changed any
+colors or anything else. Use `reset` from the command line to fix this. While I
+can call this from python, it's probably better for you to do it manually if
+and when necessary.
 
 
 Troubleshooting
@@ -140,6 +175,7 @@ import getpass
 import logging
 import logging.handlers
 import os
+import pathlib
 import pydoc
 import sys
 import termios
@@ -312,7 +348,7 @@ LogWrite.debug('catstep started with log level = {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.1.7'       # catstep version string
+__version__ = '0.1.9'       # catstep version string
 
 
 class Config:
@@ -324,6 +360,7 @@ class Config:
     AutoPlay = False            # If autoplay is selected, replay lines or chars
     ShowInfo = False            # Show info in screen output
     PeriodicStatus = 10         # In interactive mode log position in file every n seconds
+    SmartSleep = False          # Delay sleep seconds only for printable chars
 
 
 # Your program goes here:
@@ -432,22 +469,30 @@ def ParseArgs():
         help='Time to sleep between outputs in auto play mode. '
             'Fractions are allowed eg: 0.01')
 
+    parser.add_argument('-t', '--smartsleep',
+        help='Disables the smart sleep feature',
+        action='store_true')
+
     parser.add_argument('FileToCat',
-        nargs=1,
+        nargs='?', default=False,
         help='File you want to cat' )
+            # ^ Changed it to '?' so that -m will work without argparse
+            #   complaining about a missing argument.
+            #   '?' produces a single item
 
     args = parser.parse_args()
     LogWrite.debug('args object = {}'.format(args))
 
     if args.debug:
         LogWrite.setLevel(logging.DEBUG)
-        LogWrite.debug('Received command line arg --debug forcing catstep '
-            'to run in debug mode')
+        LogWrite.debug('-d / --debug arg supplied = {} . Forcing catstep '
+            'to run in debug mode'.format(args.debug))
 
     LogWrite.debug('parser object = {}'.format(parser))
     LogWrite.debug('args object = {}'.format(args))
 
     if args.man:
+        LogWrite.debug('-m / --man arg supplied = {}'.format(args.man))
         DisplayHelp()
         sys.exit(0)
 
@@ -456,26 +501,51 @@ def ParseArgs():
         LogWrite.warn('Filename to cat not suppled')
         sys.exit(1)
     else:
-        Config.FileToCat = args.FileToCat[0]
+        Config.FileToCat = args.FileToCat
+        LogWrite.debug('FileToCat supplied = {}'.format(Config.FileToCat))
+
+    if not pathlib.Path(Config.FileToCat).exists():
+        LogWrite.error('Config.FileToCat = {} was not found'.format(Config.FileToCat))
+        print('File: {} was not found'.format(Config.FileToCat))
+        sys.exit(0)
 
     if args.sleep:
         Config.UserSleep = args.sleep
+        LogWrite.debug('-s / --sleep arg supplied = {}'.format(Config.UserSleep))
 
     if args.fastforward:
         Config.FastForwardChars = args.fastforward
+        LogWrite.debug('-f / --fastforward arg supplied = {}'.format(Config.FastForwardChars))
 
     # Config.PeriodicStatus must be 1-60 or force 10:
-    if args.periodicstatus:
+#    if args.periodicstatus:
+#        Config.PeriodicStatus = args.periodicstatus
+#        if 5 < Config.PeriodicStatus > 60:
+#            Config.PeriodicStatus = 10
+
+    if args.periodicstatus == 0:
+        Config.PeriodicStatus = False
+    elif not args.periodicstatus:
+        Config.PeriodicStatus = 10
+    elif  5 <= args.periodicstatus <= 60:
         Config.PeriodicStatus = args.periodicstatus
-        if 5 < Config.PeriodicStatus > 60:
-            Config.PeriodicStatus = 10
+    else:
+        Config.PeriodicStatus = 10
+
+    LogWrite.debug('Config.PeriodicStatus = {}'.format(Config.PeriodicStatus))
 
     if args.autoplay:
         #Config.AutoPlay = args.autoplay
         Config.AutoPlay = True
+        LogWrite.debug('-a / --autoplay arg supplied = {}'.format(Config.AutoPlay))
 
     if args.info:
         Config.ShowInfo = args.info
+        LogWrite.debug('-i / --info arg supplied = {}'.format(Config.ShowInfo))
+
+    if args.smartsleep:
+        Config.SmartSleep = True
+        LogWrite.debug('-t / --smartsleep arg supplied = {}'.format(Config.SmartSleep))
 
 
 def ShowMessage(Msg):
@@ -512,6 +582,8 @@ def PlayFile():
                 # ^ Read the entire file in one go. Can be a problem for very large
                 #   files, but not experienced that so far.
             LogWrite.debug('Successfully read file: {} into FullFile'.format(Config.FileToCat))
+            os.system("stty -echo")
+            LogWrite.debug('Disabled terminal echo')
 
             if FullFile:
                 LineCounter += 1
@@ -558,10 +630,11 @@ def PlayFile():
                 CharCounter += 1
 
                 # LogWrite periodic status (position in file):
-                if ( time.time() - EpochNow ) > Config.PeriodicStatus:
-                    LogWrite.info('Current position stats: LineCounter = {} , CharCounter = {}'
-                        .format(LineCounter, CharCounter))
-                    EpochNow = time.time()
+                if Config.PeriodicStatus:
+                    if ( time.time() - EpochNow ) > Config.PeriodicStatus:
+                        LogWrite.info('Current position stats: LineCounter = {} , CharCounter = {}'
+                            .format(LineCounter, CharCounter))
+                        EpochNow = time.time()
 
                 if Looper == '\n':
                     LineCounter += 1
@@ -570,13 +643,23 @@ def PlayFile():
 
                 # In AutoPlay mode add delay after initial fast forward:
                 if (CharCounter > Config.FastForwardChars) and Config.AutoPlay:
-                    time.sleep(Config.UserSleep)
+                    if Config.SmartSleep and (not Looper.isprintable() or Looper.isspace()):
+                        # ^ Dont sleep for non-printable or whitespace chars
+                        pass
+                    else:
+                        time.sleep(Config.UserSleep)
 
                 # In manual mode add delay after initial fast forward:
                 if (CharCounter > InitialFastFwd) and not Config.AutoPlay:
-                    time.sleep(Config.UserSleep)
+                    if Config.SmartSleep and (not Looper.isprintable() or Looper.isspace()):
+                        # ^ Dont sleep for non-printable or whitespace chars
+                        pass
+                    else:
+                        time.sleep(Config.UserSleep)
 
-            LogWrite.info('Displaying file ended: {} . Displayed: LineCounter = {} '
+            os.system("stty echo")
+            LogWrite.debug('Enabled terminal echo')
+            LogWrite.info('Displaying file: {} ended. Displayed: LineCounter = {} '
                 ', CharCounter = {}'
                     .format(Config.FileToCat, LineCounter, CharCounter))
 

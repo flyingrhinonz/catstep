@@ -32,11 +32,11 @@ See the GNU General Public License for more details.
 Introduction
 ------------
 
-I wrote this program as a solution to display terminal output that was
-captured with tee.
-My other software - nccm ( ncurses ssh connection manager:
+I wrote this program ( catstep: https://github.com/flyingrhinonz/catstep ) as
+a solution to display terminal output that was captured with `tee`.
+My other software - `nccm` ( ncurses ssh connection manager:
 https://github.com/flyingrhinonz/nccm ) has an option
-to pipe all ssh command output to tee, which results in a file that contains
+to pipe all ssh command output to `tee`, which results in a file that contains
 a mixture of text and cursor/screen controls that's very hard to read in
 a regular viewer. It does however display properly when you `cat` it to
 screen but that flies away faster than you can read it.
@@ -64,6 +64,10 @@ Respects the sleep variable if supplied, else uses the default of
 
 -d / --debug :
 Log extra debugging information to syslog. Applies to both modes.
+
+-e / --nomemtest :
+catstep won't open a file if it is larger than half the available RAM.
+Bypass the memory test and open the file anyway.
 
 -f / --fastforward <chars> :
 Replay n chars at maximum speed before returning control to the regular
@@ -103,11 +107,13 @@ also incur sleep. Applies to both modes.
 Interactive mode controls
 -------------------------
 
-- 0-9 :               Play back 10^n chars where n is the key pressed.
-                      0 plays back 1 char, 1 plays back 10 chars,
-                      2 plays back 100 chars, etc
-- q :                 Quit catstep
-- p :                 Log filename and position in file
+- 0-9 :             Play back 10^n chars where n is the key pressed.
+                    0 plays back 1 char, 1 plays back 10 chars,
+                    2 plays back 100 chars, etc
+- q :               Quit catstep
+- l :               Log filename and position in file
+- f :               Make output faster by halving the sleep value.
+- s :               Make output slower by doubling the sleep value.
 
 
 Limitations
@@ -148,13 +154,20 @@ which tend to be quite small.
 char display speed varies if the text changes color or if the cursor is
 moved. This is because these control characters are also chars in the file and
 the same sleep value applies to them even if they don't result in visible
-output.
+output. Use the -t option to fix this which results in smoother output in some
+cases and jumpy output in others (more noticable at slow replay).
 
 - When you quit catstep or after it completes displaying a file naturally,
 your terminal may be a bit messed up if the file you displayed changed any
 colors or anything else. Use `reset` from the command line to fix this. While I
 can call this from python, it's probably better for you to do it manually if
 and when necessary.
+
+- In interactive mode any keypress advances the output by 1 char even if the
+key is not in use or has a completely different use.
+All keys except 1-9 advance output by 1 char which is a consequence of
+the way the loop is written - the keyboard read is part of the main loop which
+speeds up catstep by avoiding calls to a separate function.
 
 
 Troubleshooting
@@ -348,7 +361,7 @@ LogWrite.debug('catstep started with log level = {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.1.9'       # catstep version string
+__version__ = '0.1.10'       # catstep version string
 
 
 class Config:
@@ -361,6 +374,7 @@ class Config:
     ShowInfo = False            # Show info in screen output
     PeriodicStatus = 10         # In interactive mode log position in file every n seconds
     SmartSleep = False          # Delay sleep seconds only for printable chars
+    BypassMemTest = False       # Open file anyway regardless of free mem test
 
 
 # Your program goes here:
@@ -450,6 +464,10 @@ def ParseArgs():
         help='Force debug verbosity logging, ignore other logging settings',
         action='store_true' )
 
+    parser.add_argument('-e', '--nomemtest',
+        help='Open file regardless of failing the memory free test',
+        action='store_true')
+
     parser.add_argument('-f', '--fastforward', required=False, type=int,
         help='Fast forward n lines before resuming normal operation')
 
@@ -470,7 +488,7 @@ def ParseArgs():
             'Fractions are allowed eg: 0.01')
 
     parser.add_argument('-t', '--smartsleep',
-        help='Disables the smart sleep feature',
+        help='Enables the smart sleep feature',
         action='store_true')
 
     parser.add_argument('FileToCat',
@@ -507,7 +525,7 @@ def ParseArgs():
     if not pathlib.Path(Config.FileToCat).exists():
         LogWrite.error('Config.FileToCat = {} was not found'.format(Config.FileToCat))
         print('File: {} was not found'.format(Config.FileToCat))
-        sys.exit(0)
+        sys.exit(1)
 
     if args.sleep:
         Config.UserSleep = args.sleep
@@ -543,8 +561,12 @@ def ParseArgs():
         Config.ShowInfo = args.info
         LogWrite.debug('-i / --info arg supplied = {}'.format(Config.ShowInfo))
 
+    if args.nomemtest:
+        Config.BypassMemTest = args.nomemtest
+        LogWrite.debug('-e / --momemtest arg supplied = {}'.format(Config.BypassMemTest))
+
     if args.smartsleep:
-        Config.SmartSleep = True
+        Config.SmartSleep = args.smartsleep
         LogWrite.debug('-t / --smartsleep arg supplied = {}'.format(Config.SmartSleep))
 
 
@@ -569,6 +591,19 @@ def PlayFile():
     Step = 1
     EpochNow = time.time()
     InitialFastFwd = Config.FastForwardChars
+
+    # Check file size and open it accordingly:
+    FreeMemory = int(os.popen('free -b').readlines()[1:2][0].split()[-1])
+    LogWrite.debug('System FreeMemory = {}'.format(FreeMemory))
+    FileSize = pathlib.Path(Config.FileToCat).stat().st_size
+    LogWrite.debug('FileSize = {}'.format(FileSize))
+
+    if ( FileSize > (FreeMemory / 2) ) and not Config.BypassMemTest:
+        LogWrite.error('File: {} too big: {} for free memory test: {}. '
+            'Override with -e'.format(Config.FileToCat, FileSize, FreeMemory))
+        print('File: {} too big: {} for free memory test: {}. '
+            'Override with -e'.format(Config.FileToCat, FileSize, FreeMemory))
+        sys.exit(1)
 
     try:
         with open(Config.FileToCat, 'rb') as CatMe:
@@ -605,14 +640,24 @@ def PlayFile():
                             'complete file *****')
                         break
 
-                    # Log status - s:
-                    if KeyPress.lower() == 'p':
+                    # Log status - l:
+                    if KeyPress.lower() == 'l':
                         # ^ Log current display position stats but also proceeds to display
                         #   the next char because we're in a loop and would lose that
                         #   char otherwise.
-                        LogWrite.info('User pressed p to log position status. '
+                        LogWrite.info('User pressed l to log position status. '
                             'Current position stats: LineCounter = {} , CharCounter = {}'
                                 .format(LineCounter, CharCounter))
+
+                    # Halve the sleep time - f
+                    if KeyPress.lower() == 'f':
+                        Config.UserSleep = Config.UserSleep / 2
+                        LogWrite.debug('User halved Config.UserSleep , now = {:.8f}'.format(Config.UserSleep))
+
+                    # Halve the sleep time - s
+                    if KeyPress.lower() == 's':
+                        Config.UserSleep = Config.UserSleep * 2
+                        LogWrite.debug('User doubled Config.UserSleep , now = {:.8f}'.format(Config.UserSleep))
 
                     # Jump by n chars - 0-9:
                     if KeyPress in [ str(i) for i in range(10) ]:

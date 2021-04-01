@@ -167,7 +167,9 @@ and when necessary.
 key is not in use or has a completely different use.
 All keys except 1-9 advance output by 1 char which is a consequence of
 the way the loop is written - the keyboard read is part of the main loop which
-speeds up catstep by avoiding calls to a separate function.
+speeds up catstep by avoiding calls to a separate function. If this behavior
+becomes an annoyance or if enough people complain, I will replace this with
+a generator.
 
 
 Troubleshooting
@@ -361,7 +363,7 @@ LogWrite.debug('catstep started with log level = {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.1.10'       # catstep version string
+__version__ = '0.1.11'       # catstep version string
 
 
 class Config:

@@ -54,7 +54,7 @@ At it's simplest `catstep <file>` will get you going and put you into
 interactive mode. Once in interactive mode use the keyboard controls
 listed in the following section.
 
-<file> :
+file :
 The file you want to display.
 
 -a / --autoplay :
@@ -67,7 +67,8 @@ Log extra debugging information to syslog. Applies to both modes.
 
 -e / --nomemtest :
 catstep won't open a file if it is larger than half the available RAM.
-Bypass the memory test and open the file anyway.
+Use this to bypass the memory test and open the file anyway.
+Applies to both modes.
 
 -f / --fastforward <chars> :
 Replay n chars at maximum speed before returning control to the regular
@@ -123,9 +124,9 @@ Limitations
 doesn't retain state - your display is updated as per the controls in
 the file so the current state is what you see on your terminal. At first
 glance this may seem like a killer limitation, but for that I added
-the `p` interactive control which logs the char currently displayed.
+the `l` interactive control which logs the char currently displayed.
 If you need to check out what happened a short while ago (say the screen
-was cleared), just hit `p`, view the log file to see the line you were at,
+was cleared), just hit `l`, view the log file to see the line you were at,
 then restart catstep using the `-f` arg to fast forward the file a few
 chars less. Then step through it slowly.
 Also catstep periodically logs the current position, so you can use that
@@ -363,7 +364,7 @@ LogWrite.debug('catstep started with log level = {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.1.11'       # catstep version string
+__version__ = '0.1.12'       # catstep version string
 
 
 class Config:

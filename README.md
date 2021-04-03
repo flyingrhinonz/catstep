@@ -48,28 +48,28 @@ Command line arguments
 ----------------------
 
 At it's simplest `catstep <file>` will get you going and put you into
-interactive mode. Once in interactive mode use the keyboard controls
+interactive mode. Once in interactive mode - use the keyboard controls
 listed in the following section.
 
-<file> :
+file :
 The file you want to display.
 
 -a / --autoplay :
-Auto replay the file one char at a time.
-Respects the sleep variable if supplied, else uses the default of
-0.01 seconds. Applies only to autoplay mode.
+Starts catstep in autplay mode. If not supplied, catstep will wait for
+user input to control playback.
 
 -d / --debug :
-Log extra debugging information to syslog. Applies to both modes.
+Log extra debugging information to syslog.
 
 -e / --nomemtest :
 catstep won't open a file if it is larger than half the available RAM.
-Bypass the memory test and open the file anyway.
+Use this to bypass the memory test and open the file anyway.
 
 -f / --fastforward <chars> :
-Replay n chars at maximum speed before returning control to the regular
-view. This lets you speed through the file until the actual point you
-want to view at a controlled speed. Applies to both modes.
+Replay n chars at maximum speed before returning control to interactive mode.
+This lets you speed through the file until the actual point you
+want to view at a controlled speed.
+This is used when catstep is started and applies to file offset 0.
 
 -h / --help :
 Displays the command line options.
@@ -77,7 +77,6 @@ Displays the command line options.
 -i / --info :
 Displays information about the file before and after it is displayed.
 This includes file name, number of lines and chars.
-Applies to both modes.
 
 -m / --man :
 Displays this man page.
@@ -85,7 +84,7 @@ Displays this man page.
 -p / --periodic status <seconds> :
 Logs the current position in the file every n seconds (default 10).
 In interactive mode this only works if you're actively progressing in the file.
-In autoplay mode this works every n seconds.
+Does not run during the FastForward period.
 This can be really helpful if you speed past something and want to know where
 you were a few seconds ago.
 Supply a value of 0 to explicitly disable periodic logging.
@@ -94,21 +93,26 @@ If you supply a value not 0, 5-60 it will force 10 seconds.
 -s / --sleep <seconds> :
 Sleep <seconds> between chars output. Can be any number including
 times less than 1 (eg: 0.5 , 0.001 , 2.3 , etc).
-Applies to both modes.
+In interctive mode you can speed this up or slow it down.
+If not supplied, the default value of 0.01 will be used.
 
 -t / --smartsleep :
 Sleep s seconds only for printable chars. Off by default. This yields a more
 fluid playback when catstep encounters non-printable chars that would otherwise
-also incur sleep. Applies to both modes.
+also incur sleep.
+Results will vary depending upon the type of chars in your file. Since catstep
+works on a per-char basis, if you have control chars that at the single-char
+level are printable - the sleep delay will be incurred.
 
 Interactive mode controls
 -------------------------
 
 - 0-9 :             Play back 10^n chars where n is the key pressed.
                     0 plays back 1 char, 1 plays back 10 chars,
-                    2 plays back 100 chars, etc
+                    2 plays back 100 chars, etc.
+- a :               Toggle auto play.
 - q :               Quit catstep
-- l :               Log filename and position in file
+- l :               Log filename and position in file.
 - f :               Make output faster by halving the sleep value.
 - s :               Make output slower by doubling the sleep value.
 
@@ -120,9 +124,9 @@ Limitations
 doesn't retain state - your display is updated as per the controls in
 the file so the current state is what you see on your terminal. At first
 glance this may seem like a killer limitation, but for that I added
-the `p` interactive control which logs the char currently displayed.
+the `l` interactive control which logs the char currently displayed.
 If you need to check out what happened a short while ago (say the screen
-was cleared), just hit `p`, view the log file to see the line you were at,
+was cleared), just hit `l`, view the log file to see the line you were at,
 then restart catstep using the `-f` arg to fast forward the file a few
 chars less. Then step through it slowly.
 Also catstep periodically logs the current position, so you can use that
@@ -159,14 +163,6 @@ your terminal may be a bit messed up if the file you displayed changed any
 colors or anything else. Use `reset` from the command line to fix this. While I
 can call this from python, it's probably better for you to do it manually if
 and when necessary.
-
-- In interactive mode any keypress advances the output by 1 char even if the
-key is not in use or has a completely different use.
-All keys except 1-9 advance output by 1 char which is a consequence of
-the way the loop is written - the keyboard read is part of the main loop which
-speeds up catstep by avoiding calls to a separate function. If this behavior
-becomes an annoyance or if enough people complain, I will replace this with
-a generator.
 
 
 Troubleshooting

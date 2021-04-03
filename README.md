@@ -42,6 +42,11 @@ controlled pace, or step through it manually.
 Output is sent to your screen, which requires the display size to be
 identical or larger than the terminal size at capture time otherwise
 output will probably be wrong.
+catstep is written only using standard library modules. While I could have
+used a keyboard module that would have saved some coding, doing it this way
+makes catstep usable in the widest range of scenarios without requiring the
+user to add modules with pip3 (helpful in some work environments that block
+access to external software sources such as pip3).
 
 
 Command line arguments
@@ -49,7 +54,7 @@ Command line arguments
 
 At it's simplest `catstep <file>` will get you going and put you into
 interactive mode. Once in interactive mode - use the keyboard controls
-listed in the following section.
+listed in the next section.
 
 file :
 The file you want to display.
@@ -104,6 +109,7 @@ Results will vary depending upon the type of chars in your file. Since catstep
 works on a per-char basis, if you have control chars that at the single-char
 level are printable - the sleep delay will be incurred.
 
+
 Interactive mode controls
 -------------------------
 
@@ -111,10 +117,13 @@ Interactive mode controls
                     0 plays back 1 char, 1 plays back 10 chars,
                     2 plays back 100 chars, etc.
 - a :               Toggle auto play.
-- q :               Quit catstep
-- l :               Log filename and position in file.
+- d :               Turn on debug level logging. You can't turn it off again.
 - f :               Make output faster by halving the sleep value.
+- i :               Turn on info display at exit. You can't turn it off again.
+- l :               Log settings, filename and position in file.
+- q :               Quit catstep
 - s :               Make output slower by doubling the sleep value.
+- t :               Toggle SmartSleep
 
 
 Limitations

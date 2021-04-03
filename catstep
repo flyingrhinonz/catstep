@@ -45,6 +45,11 @@ controlled pace, or step through it manually.
 Output is sent to your screen, which requires the display size to be
 identical or larger than the terminal size at capture time otherwise
 output will probably be wrong.
+catstep is written only using standard library modules. While I could have
+used a keyboard module that would have saved some coding, doing it this way
+makes catstep usable in the widest range of scenarios without requiring the
+user to add modules with pip3 (helpful in some work environments that block
+access to external software sources such as pip3).
 
 
 Command line arguments
@@ -52,7 +57,7 @@ Command line arguments
 
 At it's simplest `catstep <file>` will get you going and put you into
 interactive mode. Once in interactive mode - use the keyboard controls
-listed in the following section.
+listed in the next section.
 
 file :
 The file you want to display.
@@ -107,6 +112,7 @@ Results will vary depending upon the type of chars in your file. Since catstep
 works on a per-char basis, if you have control chars that at the single-char
 level are printable - the sleep delay will be incurred.
 
+
 Interactive mode controls
 -------------------------
 
@@ -114,10 +120,13 @@ Interactive mode controls
                     0 plays back 1 char, 1 plays back 10 chars,
                     2 plays back 100 chars, etc.
 - a :               Toggle auto play.
-- q :               Quit catstep
-- l :               Log filename and position in file.
+- d :               Turn on debug level logging. You can't turn it off again.
 - f :               Make output faster by halving the sleep value.
+- i :               Turn on info display at exit. You can't turn it off again.
+- l :               Log settings, filename and position in file.
+- q :               Quit catstep
 - s :               Make output slower by doubling the sleep value.
+- t :               Toggle SmartSleep
 
 
 Limitations
@@ -361,7 +370,7 @@ LogWrite.debug('catstep started with log level = {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.2.1'       # catstep version string
+__version__ = '0.2.3'       # catstep version string
 
 
 class Config:
@@ -673,7 +682,7 @@ def PlayFile():
 
                 # Quit - q
                 if KeyPress.lower() == 'q':
-                    LogWrite.info('User pressed q to quit prior to '
+                    LogWrite.debug('User pressed q to quit prior to '
                         'displaying complete file ...')
                     ShowMessage('\n***** User quit prior to displaying '
                         'complete file *****')
@@ -684,24 +693,33 @@ def PlayFile():
                     # ^ Log current display position stats but also proceeds to display
                     #   the next char because we're in a loop and would lose that
                     #   char otherwise.
-                    LogWrite.info('User pressed l to log position status. '
-                        'Current position stats: LineCounter = {} , CharCounter = {}'
+                    LogWrite.debug('User pressed l to log position status')
+                    LogWrite.info('Current position stats: LineCounter = {} , CharCounter = {}'
                             .format(LineCounter, CharCounter))
+                    LogWrite.info('Settings: FileToCat = {} , UserSleep = {:.8f} , '
+                        'SmartSleep = {} , FastForwardChars = {} , PeriodicStatus = {} , '
+                        'AutoPlay = {} , ShowInfo = {}'
+                            .format(Config.FileToCat, Config.UserSleep, Config.SmartSleep,
+                                Config.FastForwardChars, Config.PeriodicStatus,
+                                Config.AutoPlay , Config.ShowInfo))
 
                 # Halve the sleep time - f
                 if KeyPress.lower() == 'f':
                     Config.UserSleep = Config.UserSleep / 2
-                    LogWrite.debug('User halved Config.UserSleep , now = {:.8f}'.format(Config.UserSleep))
+                    LogWrite.debug('User halved Config.UserSleep , now = {:.8f}'
+                        .format(Config.UserSleep))
 
                 # Halve the sleep time - s
                 if KeyPress.lower() == 's':
                     Config.UserSleep = Config.UserSleep * 2
-                    LogWrite.debug('User doubled Config.UserSleep , now = {:.8f}'.format(Config.UserSleep))
+                    LogWrite.debug('User doubled Config.UserSleep , now = {:.8f}'
+                        .format(Config.UserSleep))
 
                 # Toggle autoplay mode - a
                 if KeyPress.lower() == 'a':
                     Config.AutoPlay = not Config.AutoPlay
-                    LogWrite.debug('User toggled Config.AutoPlay , now = {}'.format(Config.AutoPlay))
+                    LogWrite.debug('User toggled Config.AutoPlay , now = {}'
+                        .format(Config.AutoPlay))
 
                 # Jump by n chars - 0-9:
                 if KeyPress in [ str(i) for i in range(10) ]:
@@ -718,6 +736,22 @@ def PlayFile():
                     #    'Config.FastForwardChars = {}'
                     #        .format(KeyPress, CharCounter, Config.FastForwardChars))
                     #   ^ Too much logging
+
+                # Turn on debug level logging - d:
+                if KeyPress.lower() == 'd':
+                    LogWrite.setLevel(logging.DEBUG)
+                    LogWrite.debug('User enabled debug level logging')
+
+                # Turn on info display at exit - i:
+                if KeyPress.lower() == 'i':
+                    Config.ShowInfo = True
+                    LogWrite.debug('User enabled info display at exit')
+
+                # Toggle smartsleep - t:
+                if KeyPress.lower() == 't':
+                    Config.SmartSleep = not Config.SmartSleep
+                    LogWrite.debug('User toggled Config.SmartSleep , now = {}'
+                        .format(Config.SmartSleep))
 
             elif Config.AutoPlay:
                 Config.FastForwardChars = CharCounter + 1

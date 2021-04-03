@@ -29,20 +29,21 @@ See the GNU General Public License for more details.
 Introduction
 ------------
 
-I wrote this program ( catstep: https://github.com/flyingrhinonz/catstep ) as
-a solution to display terminal output that was captured with `tee`.
-My other software - `nccm` ( ncurses ssh connection manager:
+- I wrote this program ( catstep: https://github.com/flyingrhinonz/catstep ) as
+a solution to display terminal output that was captured with `tee` although
+it can be used to view any text file.
+- My other software - `nccm` ( ncurses ssh connection manager:
 https://github.com/flyingrhinonz/nccm ) has an option
 to pipe all ssh command output to `tee`, which results in a file that contains
 a mixture of text and cursor/screen controls that's very hard to read in
 a regular viewer. It does however display properly when you `cat` it to
 screen but that flies away faster than you can read it.
-catstep aims to fix this by allowing you to auto replay the file at a
+`catstep` aims to fix this by allowing you to replay the file at a
 controlled pace, or step through it manually.
-Output is sent to your screen, which requires the display size to be
+- Output is sent to your screen, which requires the display size to be
 identical or larger than the terminal size at capture time otherwise
 output will probably be wrong.
-catstep is written only using standard library modules. While I could have
+- `catstep` is written only using standard library modules. While I could have
 used a keyboard module that would have saved some coding, doing it this way
 makes catstep usable in the widest range of scenarios without requiring the
 user to add modules with pip3 (helpful in some work environments that block
@@ -60,7 +61,7 @@ file :
 The file you want to display.
 
 -a / --autoplay :
-Starts catstep in autplay mode. If not supplied, catstep will wait for
+Starts catstep in autoplay mode. If not supplied, catstep will wait for
 user input to control playback.
 
 -d / --debug :
@@ -88,17 +89,19 @@ Displays this man page.
 
 -p / --periodic status <seconds> :
 Logs the current position in the file every n seconds (default 10).
-In interactive mode this only works if you're actively progressing in the file.
-Does not run during the FastForward period.
 This can be really helpful if you speed past something and want to know where
 you were a few seconds ago.
+It logs even if you are not actively progressing through the file, but syslog
+may suppress the logging of identical lines and subsequent lines may not
+be logged.
 Supply a value of 0 to explicitly disable periodic logging.
 If you supply a value not 0, 5-60 it will force 10 seconds.
+Does not run during the FastForward period.
 
 -s / --sleep <seconds> :
 Sleep <seconds> between chars output. Can be any number including
 times less than 1 (eg: 0.5 , 0.001 , 2.3 , etc).
-In interctive mode you can speed this up or slow it down.
+In interactive mode you can speed this up or slow it down.
 If not supplied, the default value of 0.01 will be used.
 
 -t / --smartsleep :
@@ -133,7 +136,8 @@ Limitations
 doesn't retain state - your display is updated as per the controls in
 the file so the current state is what you see on your terminal. At first
 glance this may seem like a killer limitation, but for that I added
-the `l` interactive control which logs the char currently displayed.
+the `l` interactive control which logs the position in the file of the
+last char displayed.
 If you need to check out what happened a short while ago (say the screen
 was cleared), just hit `l`, view the log file to see the line you were at,
 then restart catstep using the `-f` arg to fast forward the file a few

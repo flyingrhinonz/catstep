@@ -50,6 +50,18 @@ user to add modules with pip3 (helpful in some work environments that block
 access to external software sources such as pip3).
 
 
+Manual install instructions
+---------------------------
+
+This is the easiest way, although you can simply download catstep and make it
+executable...
+
+- Clone the project from the git repository:
+`git clone https://github.com/flyingrhinonz/catstep catstep.git`
+- `cd catstep.git/`
+- `sudo install -m 755 catstep -t /usr/local/bin/`
+
+
 Command line arguments
 ----------------------
 

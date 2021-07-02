@@ -408,7 +408,7 @@ LogWrite.debug('catstep started with log level = {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.2.9'       # catstep version string
+__version__ = '0.2.10'       # catstep version string
 
 
 class Config:
@@ -816,6 +816,7 @@ def PlayFile():
                 CharToPrint = next(Chars)
 
             except StopIteration:
+                LogWrite.info('StopIteration - reached end of file')
                 # ^ Required because next() raises an exception when there's no more data
                 break
 

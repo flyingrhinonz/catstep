@@ -236,10 +236,12 @@ import os
 import pathlib
 import pydoc
 import queue
+import signal
 import sys
 import termios
 import threading
 import time
+import traceback
 
 # Beginning of logging setup section:
 
@@ -399,7 +401,7 @@ LogWriteFormatter = logging.Formatter('{}[%(process)d]: <%(levelname)s> '
     #   ConnectionsList window built
 
 LogHandler.setFormatter(LogWriteFormatter)
-LogWrite.debug('catstep started with log level = {} as set by '
+LogWrite.debug('catstep started with log level == {} as set by '
     'LogWrite.setLevel (hardcoded in the script)'
         .format(LogWrite.getEffectiveLevel()))
     # ^ Note - this only gets logged if debug level is set in the script
@@ -408,7 +410,7 @@ LogWrite.debug('catstep started with log level = {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.2.10'       # catstep version string
+__version__ = '0.2.11'       # catstep version string
 
 
 class Config:
@@ -425,6 +427,13 @@ class Config:
 
 
 # Your program goes here:
+
+# Uncomment the next section if you want to deal with ctrl-c manually:
+def CtrlCHandler(signum, frame):
+    LogWrite.info('User pressed:  ctrl-c  . Cleanup and exit...')
+    os.system("stty echo")
+    sys.exit(150)
+
 
 def WaitingGetChar():
     ''' Get one character input from keyboard without waiting for Enter to be pressed.
@@ -498,7 +507,7 @@ def LogStartInfo():
             UID = os.getuid(),
             PPID = os.getppid(), ))
 
-    LogWrite.debug('catstep __version__ = {}'.format(__version__))
+    LogWrite.debug('catstep __version__ == {}'.format(__version__))
 
 
 def ParseArgs():
@@ -563,23 +572,23 @@ def ParseArgs():
             #   '?' produces a single item
 
     args = parser.parse_args()
-    LogWrite.debug('args object = {}'.format(args))
+    LogWrite.debug('args object == {}'.format(args))
 
     if args.debug:
         LogWrite.setLevel(logging.DEBUG)
-        LogWrite.debug('-d / --debug arg supplied = {} . Forcing catstep '
+        LogWrite.debug('-d / --debug arg supplied == {} . Forcing catstep '
             'to run in debug mode'.format(args.debug))
 
     LogWrite.debug('parser object = {}'.format(parser))
     LogWrite.debug('args object = {}'.format(args))
 
     if args.man:
-        LogWrite.debug('-m / --man arg supplied = {}'.format(args.man))
+        LogWrite.debug('-m / --man arg supplied == {}'.format(args.man))
         DisplayHelp()
         sys.exit(0)
 
     if args.version:
-        LogWrite.debug('-v / --version arg supplied = {}'.format(args.version))
+        LogWrite.debug('-v / --version arg supplied == {}'.format(args.version))
         print(__version__)
         sys.exit(0)
 
@@ -589,20 +598,20 @@ def ParseArgs():
         sys.exit(1)
     else:
         Config.FileToCat = args.FileToCat
-        LogWrite.debug('FileToCat supplied = {}'.format(Config.FileToCat))
+        LogWrite.debug('FileToCat supplied == {}'.format(Config.FileToCat))
 
     if not pathlib.Path(Config.FileToCat).exists():
-        LogWrite.error('Config.FileToCat = {} was not found'.format(Config.FileToCat))
+        LogWrite.error('Config.FileToCat == {} was not found'.format(Config.FileToCat))
         print('File: {} was not found'.format(Config.FileToCat))
         sys.exit(1)
 
     if args.sleep:
         Config.UserSleep = args.sleep
-        LogWrite.debug('-s / --sleep arg supplied = {}'.format(Config.UserSleep))
+        LogWrite.debug('-s / --sleep arg supplied == {}'.format(Config.UserSleep))
 
     if args.fastforward:
         Config.FastForwardChars = args.fastforward
-        LogWrite.debug('-f / --fastforward arg supplied = {}'.format(Config.FastForwardChars))
+        LogWrite.debug('-f / --fastforward arg supplied == {}'.format(Config.FastForwardChars))
 
     # Config.PeriodicStatus must be 1-60 or force 10:
 #    if args.periodicstatus:
@@ -619,24 +628,24 @@ def ParseArgs():
     else:
         Config.PeriodicStatus = 10
 
-    LogWrite.debug('Config.PeriodicStatus = {}'.format(Config.PeriodicStatus))
+    LogWrite.debug('Config.PeriodicStatus == {}'.format(Config.PeriodicStatus))
 
     if args.autoplay:
         #Config.AutoPlay = args.autoplay
         Config.AutoPlay = True
-        LogWrite.debug('-a / --autoplay arg supplied = {}'.format(Config.AutoPlay))
+        LogWrite.debug('-a / --autoplay arg supplied == {}'.format(Config.AutoPlay))
 
     if args.info:
         Config.ShowInfo = args.info
-        LogWrite.debug('-i / --info arg supplied = {}'.format(Config.ShowInfo))
+        LogWrite.debug('-i / --info arg supplied == {}'.format(Config.ShowInfo))
 
     if args.nomemtest:
         Config.BypassMemTest = args.nomemtest
-        LogWrite.debug('-e / --momemtest arg supplied = {}'.format(Config.BypassMemTest))
+        LogWrite.debug('-e / --momemtest arg supplied == {}'.format(Config.BypassMemTest))
 
     if args.smartsleep:
         Config.SmartSleep = args.smartsleep
-        LogWrite.debug('-t / --smartsleep arg supplied = {}'.format(Config.SmartSleep))
+        LogWrite.debug('-t / --smartsleep arg supplied == {}'.format(Config.SmartSleep))
 
 
 def ShowMessage(Msg):
@@ -653,14 +662,18 @@ def GenNextChar():
 
     # Check file size and open it accordingly:
     FreeMemory = int(os.popen('free -b').readlines()[1:2][0].split()[-1])
-    LogWrite.debug('System FreeMemory = {} bytes'.format(FreeMemory))
+    LogWrite.debug('System FreeMemory == {} bytes ({} Mb)'
+        .format(FreeMemory, (round(FreeMemory/1024/1024))))
     FileSize = pathlib.Path(Config.FileToCat).stat().st_size
-    LogWrite.debug('FileSize = {} bytes'.format(FileSize))
+    LogWrite.debug('FileSize == {} bytes ({} Mb)'
+        .format(FileSize, round(FileSize/1024/1024)))
 
     if ( FileSize > (FreeMemory / 2) ) and not Config.BypassMemTest:
         LogWrite.error('File: {} too big: {} for free memory test: {}. '
+            'Currently limited to half of your free memory. '
             'Override with -e'.format(Config.FileToCat, FileSize, FreeMemory))
         print('File: {} too big: {} for free memory test: {}. '
+            'Currently limited to half of your free memory. '
             'Override with -e'.format(Config.FileToCat, FileSize, FreeMemory))
         sys.exit(1)
 
@@ -675,13 +688,24 @@ def GenNextChar():
             FullFile = CatMe.read()
                 # ^ Read the entire file in one go. Can be a problem for very large
                 #   files, but not encountered that so far.
-            LogWrite.debug('Successfully read file: {} into FullFile'.format(Config.FileToCat))
+            LogWrite.debug('Successfully read file: {} into FullFile. Size == {} bytes. '
+                'Note - byte size can be bigger than the number of printable chars'
+                    .format(Config.FileToCat, len(FullFile)))
 
             for CharLooper in FullFile.decode():
                 yield(CharLooper)
 
-    except:
+    except GeneratorExit:
+        LogWrite.debug('Generator exited')
+            # ^ This exception is not caught in:  "except Exception as Err:"  but falls through
+            #       to the final:  "except:"
+
+    except Exception as Err:
         LogWrite.error('ctrl-c pressed or error captured')
+
+    except:
+        TraceBack=traceback.format_exc()
+        LogWrite.error('Unspecified error occurred. Traceback == {}'.format(TraceBack))
 
 
 def PlayFile():
@@ -729,7 +753,7 @@ def PlayFile():
 
                 # Quit - q
                 if KeyPress.lower() == 'q':
-                    LogWrite.debug('User pressed q to quit prior to '
+                    LogWrite.debug('User pressed:  q  to quit prior to '
                         'displaying complete file ...')
                     ShowMessage('\n***** User quit prior to displaying '
                         'complete file *****')
@@ -740,12 +764,12 @@ def PlayFile():
                     # ^ Log current display position stats but also proceeds to display
                     #   the next char because we're in a loop and would lose that
                     #   char otherwise.
-                    LogWrite.debug('User pressed l to log position status')
-                    LogWrite.info('Current position stats: LineCounter = {} , CharCounter = {}'
+                    LogWrite.debug('User pressed:  l  to log position status')
+                    LogWrite.info('Current position stats: LineCounter == {} , CharCounter == {}'
                             .format(LineCounter, CharCounter))
-                    LogWrite.info('Settings: FileToCat = {} , UserSleep = {:.8f} , '
-                        'SmartSleep = {} , FastForwardChars = {} , PeriodicStatus = {} , '
-                        'AutoPlay = {} , ShowInfo = {}'
+                    LogWrite.info('Settings: FileToCat == {} , UserSleep == {:.8f} , '
+                        'SmartSleep == {} , FastForwardChars == {} , PeriodicStatus == {} , '
+                        'AutoPlay == {} , ShowInfo == {}'
                             .format(Config.FileToCat, Config.UserSleep, Config.SmartSleep,
                                 Config.FastForwardChars, Config.PeriodicStatus,
                                 Config.AutoPlay , Config.ShowInfo))
@@ -753,26 +777,26 @@ def PlayFile():
                 # Halve the sleep time - f
                 if KeyPress.lower() == 'f':
                     Config.UserSleep = Config.UserSleep / 2
-                    LogWrite.debug('User pressed f to halve Config.UserSleep , now = {:.8f}'
+                    LogWrite.debug('User pressed:  f  to halve Config.UserSleep == {:.8f}'
                         .format(Config.UserSleep))
 
                 # Halve the sleep time - s
                 if KeyPress.lower() == 's':
                     Config.UserSleep = Config.UserSleep * 2
-                    LogWrite.debug('User pressed s to double Config.UserSleep , now = {:.8f}'
+                    LogWrite.debug('User pressed:  s  to double Config.UserSleep == {:.8f}'
                         .format(Config.UserSleep))
 
                 # Toggle autoplay mode - a
                 if KeyPress.lower() == 'a':
                     Config.AutoPlay = not Config.AutoPlay
-                    LogWrite.debug('User pressed a to toggle Config.AutoPlay , now = {}'
+                    LogWrite.debug('User pressed:  a  to toggle Config.AutoPlay == {}'
                         .format(Config.AutoPlay))
 
                 # Stop playback - p
                 if KeyPress.lower() == 'p':
                     Config.AutoPlay = False
                     Config.FastForwardChars = CharCounter
-                    LogWrite.debug('User pressed p to stop playback')
+                    LogWrite.debug('User pressed:  p  to stop playback')
 
                 # Jump by n chars - 0-9:
                 if KeyPress in [ str(i) for i in range(10) ]:
@@ -793,18 +817,21 @@ def PlayFile():
                 # Turn on debug level logging - d:
                 if KeyPress.lower() == 'd':
                     LogWrite.setLevel(logging.DEBUG)
-                    LogWrite.debug('User pressed d to enable debug level logging')
+                    LogWrite.debug('User pressed:  d  to enable debug level logging')
 
                 # Turn on info display at exit - i:
                 if KeyPress.lower() == 'i':
                     Config.ShowInfo = True
-                    LogWrite.debug('User pressed i to enable info display at exit')
+                    LogWrite.debug('User pressed:  i  to enable info display at exit')
 
                 # Toggle smartsleep - t:
                 if KeyPress.lower() == 't':
                     Config.SmartSleep = not Config.SmartSleep
-                    LogWrite.debug('User pressed t to toggle Config.SmartSleep , now = {}'
+                    LogWrite.debug('User pressed:  t  to toggle Config.SmartSleep == {}'
                         .format(Config.SmartSleep))
+
+                else:
+                    LogWrite.debug('User pressed unsupported key: KeyPress == {}'.format(KeyPress))
 
             elif Config.AutoPlay:
                 Config.FastForwardChars = CharCounter + 1
@@ -837,8 +864,8 @@ def PlayFile():
             # LogWrite periodic status (position in file):
             if Config.PeriodicStatus:
                 if ( time.time() - EpochBase ) > Config.PeriodicStatus:
-                    LogWrite.info('Current position stats: LineCounter = {} , CharCounter = {} , '
-                        'PrintableCharCounter = {}'
+                    LogWrite.info('Current position stats: LineCounter == {} , CharCounter == {} , '
+                        'PrintableCharCounter == {}'
                             .format(LineCounter, CharCounter, PrintableCharCounter))
                     EpochBase = time.time()
 
@@ -853,8 +880,8 @@ def PlayFile():
     # File completed printing. Tidy up and display stats if required:
     LogWrite.debug('Enabling terminal echo...')
     os.system("stty echo")
-    LogWrite.info('Displaying file: {} ended. Displayed: LineCounter = {} '
-        ', CharCounter = {} , PrintableCharCounter = {}'
+    LogWrite.info('Displaying file: {} ended. Displayed: LineCounter == {} '
+        ', CharCounter == {} , PrintableCharCounter == {}'
             .format(Config.FileToCat, LineCounter, CharCounter, PrintableCharCounter))
 
     ShowMessage('***** Displaying file ended *****')
@@ -873,6 +900,7 @@ def main(*args):
     LogStartInfo()
         # ^ Moved it after ParseArgs so that we have debugging info logged if
         #   started using 'catstep -d' .
+    signal.signal(signal.SIGINT, CtrlCHandler)  # Ctrl-c handling
     CharCounter = PlayFile()
     EndTime = time.time()
     SessionTime = (EndTime - StartTime)

@@ -120,7 +120,7 @@ It logs even if you are not actively progressing through the file, but syslog
 may suppress the logging of identical lines and subsequent lines may not
 be logged.
 Supply a value of 0 to explicitly disable periodic logging.
-If you supply a value not 0, 5-60 it will force 10 seconds.
+If you supply a value which is not 0 or 5-60 it will force 10 seconds.
 Does not run during the FastForward period.
 
 -s / --sleep <seconds> :
@@ -155,7 +155,7 @@ Interactive mode controls
 - f :               Make output faster by halving the sleep value.
 - i :               Turn on info display at exit. You can't turn it off again.
 - l :               Log settings, filename and position in file.
-- p :               Stop playback regardless of how it was started. You can
+- p :               Pause playback regardless of how it was started. You can
                     resume playback with 'a' or 0-9.
 - q :               Quit catstep
 - s :               Make output slower by doubling the sleep value.
@@ -410,7 +410,7 @@ LogWrite.debug('catstep started with log level == {} as set by '
 # ^ End of logging setup section
 
 # The rest of our global variables go here:
-__version__ = '0.2.11'       # catstep version string
+__version__ = '0.2.12'       # catstep version string
 
 
 class Config:
@@ -545,12 +545,12 @@ def ParseArgs():
         action='store_true' )
 
     parser.add_argument('-m', '--man',
-        help='Display catstep man page and exit',
+        help='Display full catstep man page and exit',
         action='store_true' )
 
     parser.add_argument('-p', '--periodicstatus', required=False, type=int,
         #choices=range(1, 61),
-        help='Log position in file every n seconds (accepts 5-60)')
+        help='Log position in file every n seconds (accepts 0 and 5-60)')
 
     parser.add_argument('-s', '--sleep', required=False, type=float,
         help='Time to sleep between outputs in auto play mode. '

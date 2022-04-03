@@ -117,7 +117,7 @@ It logs even if you are not actively progressing through the file, but syslog
 may suppress the logging of identical lines and subsequent lines may not
 be logged.
 Supply a value of 0 to explicitly disable periodic logging.
-If you supply a value not 0, 5-60 it will force 10 seconds.
+If you supply a value which is not 0 or 5-60 it will force 10 seconds.
 Does not run during the FastForward period.
 
 -s / --sleep <seconds> :
@@ -137,6 +137,9 @@ Results will vary depending upon the type of chars in your file. Since catstep
 works on a per-char basis, if you have control chars that at the single-char
 level are printable - the sleep delay will be incurred.
 
+-v / --version :
+Show catstep version.
+
 
 Interactive mode controls
 -------------------------
@@ -149,7 +152,7 @@ Interactive mode controls
 - f :               Make output faster by halving the sleep value.
 - i :               Turn on info display at exit. You can't turn it off again.
 - l :               Log settings, filename and position in file.
-- p :               Stop playback regardless of how it was started. You can
+- p :               Pause playback regardless of how it was started. You can
                     resume playback with 'a' or 0-9.
 - q :               Quit catstep
 - s :               Make output slower by doubling the sleep value.
